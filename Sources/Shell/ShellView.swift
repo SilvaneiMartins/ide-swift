@@ -26,7 +26,8 @@ public struct ShellView: View {
                 }
         }
         .navigationTitle(store.activeDocument?.displayName ?? "ide-swift")
-        .navigationSubtitle(store.activeDocument?.displayPath ?? store.root.lastPathComponent)
+        .navigationSubtitle(store.activeDocument?.displayPath ?? store.root?.lastPathComponent ?? "")
+        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .toolbar { HeaderView(store: store) }
     }
 

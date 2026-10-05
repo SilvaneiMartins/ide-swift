@@ -85,7 +85,7 @@ struct IdeCommands: Commands {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.directoryURL = store.root
+        if let root = store.root { panel.directoryURL = root }
         if panel.runModal() == .OK {
             panel.urls.forEach { store.open($0) }
         }

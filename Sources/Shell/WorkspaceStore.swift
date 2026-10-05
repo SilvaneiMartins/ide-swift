@@ -1,3 +1,4 @@
+import AppKit
 import DesignSystem
 import EditorCore
 import Foundation
@@ -33,8 +34,8 @@ public final class WorkspaceStore {
     }
 
     // Workspace
-    public private(set) var root: URL
-    public private(set) var tree: FileNode
+    public private(set) var root: URL?
+    public private(set) var tree: FileNode?
     public var isSidebarVisible = true
 
     // Documentos
@@ -48,24 +49,26 @@ public final class WorkspaceStore {
     public private(set) var isRunning = false
     public private(set) var servicePort: Int?
 
+    /// `root == nil` significa "nenhum projeto aberto": a sidebar mostra o
+    /// empty state com logo e botão de importar em vez da árvore.
+    /// Se `--workspace <path>` vier da linha de comando, esse caminho vira a
+    /// raiz inicial (rodar via `open` deixa o cwd em `/`).
     public init(root: URL? = nil) {
-        let resolved = root ?? Self.defaultRoot()
-        self.root = resolved
-        self.tree = WorkspaceScanner.scan(root: resolved)
+        if let root {
+            self.root = root
+            self.tree = WorkspaceScanner.scan(root: root)
+        } else if let fromArgs = Self.workspaceFromArguments() {
+            self.root = fromArgs
+            self.tree = WorkspaceScanner.scan(root: fromArgs)
+        }
         self.recentURLs = RecentFilesStore.load()
     }
 
-    /// Quando roda dentro de um `.app` via `open`, o diretório atual é `/` —
-    /// varrer a raiz do filesystem seria travativo. Sem argumento explícito
-    /// a IDE abre em `~/Projects`.
-    private static func defaultRoot() -> URL {
+    private static func workspaceFromArguments() -> URL? {
         let arguments = CommandLine.arguments
-        if let index = arguments.firstIndex(of: "--workspace"), index + 1 < arguments.count {
-            return URL(fileURLWithPath: arguments[index + 1], isDirectory: true)
-        }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let projects = home.appendingPathComponent("Projects", isDirectory: true)
-        return FileManager.default.fileExists(atPath: projects.path) ? projects : home
+        guard let index = arguments.firstIndex(of: "--workspace"),
+              index + 1 < arguments.count else { return nil }
+        return URL(fileURLWithPath: arguments[index + 1], isDirectory: true)
     }
 
     public var activeDocument: OpenDocument? {
@@ -75,7 +78,28 @@ public final class WorkspaceStore {
 
     // MARK: - Workspace
 
+    /// Aponta a workspace para uma pasta já conhecida (ex.: recents).
+    public func setRoot(_ url: URL) {
+        root = url
+        tree = WorkspaceScanner.scan(root: url)
+    }
+
+    /// Abre o seletor de pastas nativo do macOS e importa o projeto escolhido.
+    /// `NSOpenPanel` só funciona na main thread — o store já é `@MainActor`.
+    public func importProject() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Importar"
+        panel.message = "Escolha a pasta do projeto SwiftPM"
+        if let root { panel.directoryURL = root }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        setRoot(url)
+    }
+
     public func reload() {
+        guard let root else { return }
         tree = WorkspaceScanner.scan(root: root)
     }
 

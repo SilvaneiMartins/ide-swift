@@ -94,7 +94,8 @@ struct WorkspaceStoreTests {
     @Test("pasta não vira documento")
     func ignoresDirectories() throws {
         let (store, _) = try makeStore()
-        store.open(store.root.appendingPathComponent("Sources", isDirectory: true))
+        let root = try #require(store.root)
+        store.open(root.appendingPathComponent("Sources", isDirectory: true))
         #expect(store.documents.isEmpty)
         #expect(store.activeDocument == nil)
     }
@@ -132,9 +133,43 @@ struct WorkspaceStoreTests {
     @Test("arquivos fora da lista de extensões não abrem")
     func ignoresUnsupportedExtensions() throws {
         let (store, _) = try makeStore()
-        let json = store.root.appendingPathComponent("Package.resolved")
+        let root = try #require(store.root)
+        let json = root.appendingPathComponent("Package.resolved")
         try "{}".write(to: json, atomically: true, encoding: .utf8)
         store.open(json)
         #expect(store.documents.isEmpty)
+    }
+
+    @Test("sem argumento root, a workspace fica vazia (sem projeto)")
+    func startsWithoutProject() {
+        let store = WorkspaceStore(root: nil)
+        #expect(store.root == nil)
+        #expect(store.tree == nil)
+    }
+
+    @Test("setRoot aponta para a pasta e monta a árvore")
+    func setRootScansTree() throws {
+        let store = WorkspaceStore(root: nil)
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ide-swift-import-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try "let x = 1".write(
+            to: root.appendingPathComponent("main.swift"),
+            atomically: true, encoding: .utf8
+        )
+
+        store.setRoot(root)
+
+        #expect(store.root == root)
+        #expect(store.tree != nil)
+        #expect(store.tree?.children.contains { $0.name == "main.swift" } == true)
+    }
+
+    @Test("reload sem root não quebra")
+    func reloadWithoutRootIsSafe() {
+        let store = WorkspaceStore(root: nil)
+        store.reload()
+        #expect(store.root == nil)
+        #expect(store.tree == nil)
     }
 }
