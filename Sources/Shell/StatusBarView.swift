@@ -1,28 +1,31 @@
 import DesignSystem
 import SwiftUI
 
-/// Componente 4 de 4 — StatusBar. Posição do cursor, configuração, estado
-/// do build, do LSP e a porta do serviço em execução.
+/// Componente 4 de 4 — StatusBar. Nome do projeto e posição do cursor à
+/// esquerda; erros, LSP e estado do build à direita.
 struct StatusBarView: View {
     @Bindable var store: WorkspaceStore
 
     var body: some View {
         HStack(spacing: Metrics.unit * 3) {
-            cursorIndicator
-            Divider().frame(height: 12)
-            Text("Swift")
-            Text(store.configuration.rawValue)
-            if store.hasUnsavedChanges {
-                Label("Modificado", systemImage: "pencil")
+            // MARK: - Esquerda
+            Text(store.root?.lastPathComponent ?? "ide-swift")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            if store.activeDocument != nil {
+                Divider().frame(height: 12)
+                cursorIndicator
             }
+
             Spacer()
-            buildIndicator
+
+            // MARK: - Direita
+            errorIndicator
             Divider().frame(height: 12)
             lspIndicator
-            if let port = store.servicePort {
-                Divider().frame(height: 12)
-                Label("localhost:\(port)", systemImage: "network")
-            }
+            Divider().frame(height: 12)
+            buildIndicator
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -36,6 +39,28 @@ struct StatusBarView: View {
         let selection = store.activeDocument?.selection
         return Text(selection.map { "Ln \($0.line), Col \($0.column)" } ?? "Ln 1, Col 1")
             .monospacedDigit()
+    }
+
+    /// Contagem de erros do último build. Sem LSP ainda (Fase 2), a fonte
+    /// é o `buildState` — quando os diagnósticos chegarem, passa a ler do
+    /// store também.
+    private var errorIndicator: some View {
+        HStack(spacing: Metrics.unit) {
+            if case .failed(let count, _) = store.buildState, count > 0 {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+                Text("\(count)")
+            } else {
+                Image(systemName: "xmark.circle")
+                Text("0")
+            }
+        }
+        .monospacedDigit()
+    }
+
+    private var lspIndicator: some View {
+        Label("LSP", systemImage: "bolt.horizontal.circle")
+            .foregroundStyle(.tertiary)
     }
 
     @ViewBuilder
@@ -56,10 +81,5 @@ struct StatusBarView: View {
             Label("\(count) erro\(count == 1 ? "" : "s")", systemImage: "xmark.octagon.fill")
                 .foregroundStyle(.red)
         }
-    }
-
-    private var lspIndicator: some View {
-        Label("LSP: Fase 2", systemImage: "bolt.horizontal.circle")
-            .foregroundStyle(.tertiary)
     }
 }

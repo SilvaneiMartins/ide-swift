@@ -3,23 +3,26 @@ import SwiftUI
 
 /// Componente 2 de 4 — Header.
 ///
-/// Liquid glass (macOS 26+): os controles ficam dentro de um
-/// `GlassEffectContainer`, que faz o material de vidro reagir aos vizinhos
-/// — o efeito que o Finder e o Safari usam. Cada botão é SwiftUI com
-/// `.buttonStyle(.glass)`, o estilo nativo do novo design system; não há
-/// mais `NSButton` com `bezelStyle` aqui.
+/// Liquid glass (macOS 26+): cada controle é uma cápsula de vidro com
+/// `.glassEffect(.regular, in: .capsule)`, e os grupos ficam dentro de
+/// `GlassEffectContainer`, que faz as cápsulas vizinhas fundirem as bordas
+/// — o mesmo efeito do Finder e do Safari.
 ///
-/// Layout: Run/Stop/Build agrupados à esquerda, configuração no centro,
-/// toggle da sidebar à direita.
+/// O `ConfigurationPicker` (NSPopUpButton) não recebe glass porque é
+/// AppKit; substituído por um `Menu` SwiftUI com o mesmo efeito, mantendo
+/// o comportamento nativo de menu.
+///
+/// Layout: Run/Stop/Build à esquerda, configuração + toggle da sidebar
+/// à direita.
 struct HeaderView: ToolbarContent {
     @Bindable var store: WorkspaceStore
 
     var body: some ToolbarContent {
-        // MARK: - Ações de build/run (agrupadas em glass)
+        // MARK: - Ações de build/run
         ToolbarItem(placement: .navigation) {
-            GlassEffectContainer(spacing: Metrics.unit) {
+            GlassEffectContainer(spacing: 2) {
                 HStack(spacing: 0) {
-                    headerButton(
+                    capsuleButton(
                         symbol: "play.fill",
                         help: "Run (⌘R)",
                         enabled: store.activeDocument != nil
@@ -27,7 +30,7 @@ struct HeaderView: ToolbarContent {
                         store.startRunning()
                     }
 
-                    headerButton(
+                    capsuleButton(
                         symbol: "stop.fill",
                         help: "Stop (⌘.)",
                         enabled: store.isRunning
@@ -35,7 +38,7 @@ struct HeaderView: ToolbarContent {
                         store.stopRunning()
                     }
 
-                    headerButton(
+                    capsuleButton(
                         symbol: "hammer",
                         help: "Build (⌃⌘B)",
                         enabled: true
@@ -46,26 +49,27 @@ struct HeaderView: ToolbarContent {
             }
         }
 
-        // MARK: - Configuração Debug/Release
-        ToolbarItem(placement: .automatic) {
-            ConfigurationPicker(selection: $store.configuration)
-        }
-
-        // MARK: - Toggle da sidebar
+        // MARK: - Configuração + sidebar (grupo direito)
         ToolbarItem(placement: .primaryAction) {
-            GlassEffectContainer {
-                headerButton(
-                    symbol: store.isSidebarVisible ? "sidebar.left" : "sidebar.right",
-                    help: "Mostrar/Ocultar Sidebar (⌃⌘X)",
-                    enabled: true
-                ) {
-                    store.isSidebarVisible.toggle()
+            GlassEffectContainer(spacing: 2) {
+                HStack(spacing: 0) {
+                    configurationMenu
+
+                    capsuleButton(
+                        symbol: store.isSidebarVisible ? "sidebar.left" : "sidebar.right",
+                        help: "Mostrar/Ocultar Sidebar (⌃⌘X)",
+                        enabled: true
+                    ) {
+                        store.isSidebarVisible.toggle()
+                    }
                 }
             }
         }
     }
 
-    private func headerButton(
+    // MARK: - Controles
+
+    private func capsuleButton(
         symbol: String,
         help: String,
         enabled: Bool,
@@ -74,10 +78,47 @@ struct HeaderView: ToolbarContent {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
-                .frame(width: 28, height: 24)
+                .frame(width: 32, height: 26)
+                .contentShape(.rect)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .capsule)
         .disabled(!enabled)
         .help(help)
+    }
+
+    /// Menu Debug/Release em cápsula de vidro. `Menu` do SwiftUI mantém o
+    /// comportamento nativo de popup (abrir, teclado, foco) sem precisar
+    /// de `NSPopUpButton`.
+    private var configurationMenu: some View {
+        Menu {
+            ForEach(WorkspaceStore.Configuration.allCases) { configuration in
+                Button {
+                    store.configuration = configuration
+                } label: {
+                    if store.configuration == configuration {
+                        Label(configuration.rawValue, systemImage: "checkmark")
+                    } else {
+                        Text(configuration.rawValue)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text(store.configuration.rawValue)
+                    .font(.system(size: 12, weight: .medium))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .contentShape(.rect)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .capsule)
+        .fixedSize()
+        .help("Configuração de build — apenas Debug e Release")
     }
 }

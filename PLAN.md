@@ -241,6 +241,14 @@ mostrar progresso em vez de parecer travada.
 - **Dark mode** obrigatório; verificar contraste em ambos.
 - **Foco/seleção de cor semântica** — nunca azul genérico.
 
+### Visual VS Code-like (aprovado em 04-10-2026, referência IMG_6156)
+
+- **Árvore mostra tudo:** `WorkspaceScanner` não filtra pastas ocultas (`.build`, `.swiftpm`, `.vscode` aparecem). Única exceção: `.git` (o VS Code também esconde seu conteúdo via `files.exclude`; escanear `.git/objects` eager é pesado).
+- **Header da sidebar:** linha no topo com nome do projeto + 5 ícones de ação (novo arquivo, importar, reload, colapsar, mais). Três deles estão `disabled` com tooltip "em breve" — não se descreve como funcional o que não existe.
+- **Indicador de modificado na árvore:** ponto cinza à direita de arquivos com `isDirty`, mesmo padrão das abas.
+- **Empty state (Body):** watermark do logo Swift 80pt com opacity 0.15 + 3 linhas de atalho com keycaps: Importar Projeto (⌘O, ativo), Todos os Comandos (⇧⌘P, **disabled** até a Fase 6), Buscar Arquivo (⌘F, ativo só com documento aberto).
+- **Status bar:** esquerda = nome do projeto (bold) + Ln/Col (só com documento); direita = contagem de erros + LSP + estado do build. Removidos "Swift", "Debug" e "Modificado" — Debug já está no header.
+
 ## 9. Riscos e decisões abertas
 
 | Risco | Mitigação |

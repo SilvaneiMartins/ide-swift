@@ -5,8 +5,8 @@ import Testing
 
 @Suite("WorkspaceScanner")
 struct WorkspaceScannerTests {
-    @Test("ignora .build e .git na varredura")
-    func ignoresBuildDirectories() throws {
+    @Test("mostra pastas ocultas como .build, mas ignora .git")
+    func showsHiddenButIgnoresGit() throws {
         let root = try TemporaryDirectory()
         defer { root.remove() }
         try root.write("Sources/App/main.swift", contents: "print(1)")
@@ -19,7 +19,7 @@ struct WorkspaceScannerTests {
 
         #expect(topLevel.contains("Sources"))
         #expect(topLevel.contains("Package.swift"))
-        #expect(!topLevel.contains(".build"))
+        #expect(topLevel.contains(".build"))
         #expect(!topLevel.contains(".git"))
     }
 

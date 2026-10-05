@@ -45,18 +45,75 @@ struct BodyView: View {
         )
     }
 
+    /// Empty state: watermark do logo + atalhos de teclado no estilo da
+    /// referência (VS Code). O atalho ⇧⌘P está desabilitado porque o
+    /// Command Palette é da Fase 6 — não se descreve como funcional o que
+    /// ainda não existe.
     private var emptyState: some View {
-        VStack(spacing: Metrics.unit * 3) {
+        VStack(spacing: Metrics.unit * 6) {
             Image(systemName: "swift")
-                .font(.system(size: 40, weight: .light))
+                .font(.system(size: 80, weight: .light))
                 .foregroundStyle(.tertiary)
-            Text("Nenhum arquivo aberto")
-                .font(.headline)
-            Text("Selecione um arquivo .swift na sidebar")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .opacity(0.15)
+
+            VStack(spacing: Metrics.unit * 3) {
+                shortcutRow(
+                    label: "Importar Projeto",
+                    keys: ["⌘", "O"]
+                ) {
+                    store.importProject()
+                }
+
+                shortcutRow(
+                    label: "Todos os Comandos",
+                    keys: ["⇧", "⌘", "P"],
+                    enabled: false,
+                    help: "Em breve — Fase 6"
+                ) {}
+
+                shortcutRow(
+                    label: "Buscar Arquivo",
+                    keys: ["⌘", "F"],
+                    enabled: store.activeDocument != nil,
+                    help: "Localizar no arquivo ativo"
+                ) {
+                    editor.showFindBar()
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Linha de atalho: label à esquerda, keycaps à direita. No estilo da
+    /// referência — texto secundário + teclas em retângulos arredondados.
+    private func shortcutRow(
+        label: String,
+        keys: [String],
+        enabled: Bool = true,
+        help: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: Metrics.unit * 6) {
+                Text(label)
+                    .font(.system(size: 13))
+                Spacer()
+                HStack(spacing: 3) {
+                    ForEach(keys, id: \.self) { key in
+                        Text(key)
+                            .font(.system(size: 11, weight: .medium))
+                            .frame(minWidth: 20, minHeight: 18)
+                            .background(.quaternary)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                }
+            }
+            .foregroundStyle(enabled ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+            .frame(width: 240)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(help ?? label)
     }
 }
 

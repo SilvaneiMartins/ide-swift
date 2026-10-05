@@ -29,11 +29,14 @@ public struct FileNode: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Leitura da árvore de um pacote SwiftPM, restrita ao que a IDE precisa:
-/// fontes Swift, manifest, documentação e fontes de teste.
+/// Leitura da árvore de um pacote SwiftPM. Mostra tudo — inclusive
+/// pastas ocultas como `.build`, `.swiftpm` e `.vscode` — como o VS Code.
+/// A única exceção é `.git`: o VS Code também esconde o conteúdo dela por
+/// padrão (`files.exclude`), e escanear `.git/objects` eager pode ser
+/// milhares de nós numa repo ativa.
 public enum WorkspaceScanner {
     public static let ignoredDirectories: Set<String> = [
-        ".build", ".git", ".swiftpm", "DerivedData", ".idea", "node_modules",
+        ".git",
     ]
 
     public static func scan(root: URL) -> FileNode {
@@ -44,8 +47,7 @@ public enum WorkspaceScanner {
         let fm = FileManager.default
         let urls = (try? fm.contentsOfDirectory(
             at: directory,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
+            includingPropertiesForKeys: [.isDirectoryKey]
         )) ?? []
 
         return urls

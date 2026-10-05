@@ -2,8 +2,8 @@ import DesignSystem
 import ProjectModel
 import SwiftUI
 
-/// Componente 1 de 4 — Sidebar. Árvore do pacote SwiftPM, arquivos
-/// recentes e (a partir da Fase 2) estrutura de símbolos e busca.
+/// Componente 1 de 4 — Sidebar. Header com ações, árvore do pacote
+/// SwiftPM e arquivos recentes.
 ///
 /// A árvore vive dentro de uma `List(.sidebar)`: é a tree nativa do macOS,
 /// com triângulo de expandir, seleção e material translúcido. Uma
@@ -20,6 +20,8 @@ struct SidebarView: View {
             if store.tree == nil {
                 emptyState
             } else {
+                sidebarHeader
+                Divider()
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -31,6 +33,55 @@ struct SidebarView: View {
         }
         .background(Palette.sidebar)
     }
+
+    // MARK: - Header da sidebar
+
+    /// Linha de ações no topo da árvore, como o Explorer do VS Code:
+    /// nome do projeto à esquerda, ícones de ação à direita.
+    private var sidebarHeader: some View {
+        HStack(spacing: Metrics.unit) {
+            Text(store.root?.lastPathComponent ?? "ide-swift")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer()
+
+            headerAction(symbol: "doc.badge.plus", help: "Novo arquivo (em breve)") {}
+                .disabled(true)
+            headerAction(symbol: "folder.badge.plus", help: "Importar projeto") {
+                store.importProject()
+            }
+            headerAction(symbol: "arrow.clockwise", help: "Reload (⌘⇧R)") {
+                store.reload()
+            }
+            headerAction(symbol: "rectangle.3.group", help: "Colapsar tudo (em breve)") {}
+                .disabled(true)
+            headerAction(symbol: "ellipsis.circle", help: "Mais opções (em breve)") {}
+                .disabled(true)
+        }
+        .padding(.horizontal, Metrics.unit * 3)
+        .frame(height: 28)
+    }
+
+    private func headerAction(
+        symbol: String,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11))
+                .frame(width: 20, height: 20)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tertiary)
+        .help(help)
+    }
+
+    // MARK: - Empty state
 
     /// Empty state: logo Swift + botão de importar, centralizado na vertical
     /// e na horizontal. Aparece quando nenhum projeto está aberto.
@@ -77,24 +128,29 @@ struct SidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Só a árvore por enquanto. `Structure` e `Search` dependem do LSP
-    /// (Fase 2/3) e tabs com placeholder só adicionariam chrome.
+    // MARK: - Árvore
+
     private var content: some View {
         projectTree
     }
 
     private var projectTree: some View {
-        List(selection: treeSelection) {
+        // Conjunto de URLs com alterações não salvas, para o ponto na árvore.
+        let dirtyIDs = Set(store.documents.filter(\.isDirty).map(\.id))
+
+        return List(selection: treeSelection) {
             if let tree = store.tree {
                 OutlineGroup([tree], children: \.optionalChildren) { node in
                     if node.isDirectory {
                         // Sem tag: se a pasta entrasse na seleção, o realce
                         // pularia para ela e a linha do arquivo aberto perderia
                         // o destaque.
-                        FileRow(node: node) {}
+                        FileRow(node: node, isDirty: false) {}
                     } else {
-                        FileRow(node: node) { store.open(node.id) }
-                            .tag(node.id)
+                        FileRow(node: node, isDirty: dirtyIDs.contains(node.id)) {
+                            store.open(node.id)
+                        }
+                        .tag(node.id)
                     }
                 }
             }
@@ -111,6 +167,8 @@ struct SidebarView: View {
             }
         )
     }
+
+    // MARK: - Recentes
 
     private var recents: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -153,6 +211,7 @@ struct SidebarView: View {
 
 private struct FileRow: View {
     let node: FileNode
+    let isDirty: Bool
     let action: () -> Void
 
     var body: some View {
@@ -181,6 +240,13 @@ private struct FileRow: View {
                 .font(.system(size: 12))
                 .lineLimit(1)
                 .truncationMode(.middle)
+
+            if isDirty {
+                Spacer(minLength: Metrics.unit)
+                Circle()
+                    .fill(.secondary)
+                    .frame(width: 5, height: 5)
+            }
         }
     }
 
